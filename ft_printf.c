@@ -6,7 +6,7 @@
 /*   By: ivar <ivar@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/02 08:43:22 by ivar              #+#    #+#             */
-/*   Updated: 2024/11/02 13:43:12 by ivar             ###   ########.fr       */
+/*   Updated: 2024/11/24 18:15:17 by ivar             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,18 @@ typedef struct s_format
 	char	specifier;
 }	t_format;
 
+int	ft_strlen(char *str)
+{
+	int	i;
+
+	i = 0;
+	if (!str)
+		return (-1);
+	while (str[i])
+		i++;
+	return (i);
+}
+
 #pragma region [PARSE]
 void	init_format(t_format *format)
 {
@@ -38,7 +50,6 @@ void	init_format(t_format *format)
 	format->width = 0;
 	format->zero_padding = 0;
 }
-
 void	parse_flags(const char **str, t_format *format)
 {
 	while (**str == '#' || **str == '-' || **str == '+'
@@ -57,7 +68,6 @@ void	parse_flags(const char **str, t_format *format)
 		(*str)++;
 	}
 }
-
 void	parse_width(const char **str, t_format *format, va_list args)
 {
 	if (**str == '*')
@@ -72,7 +82,6 @@ void	parse_width(const char **str, t_format *format, va_list args)
 			format->width = format->width * 10 + (*((*str)++) - '0');
 	}
 }
-
 void	parse_precision(const char **str, t_format *format, va_list args)
 {
 	if (**str == '.')
@@ -94,7 +103,6 @@ void	parse_precision(const char **str, t_format *format, va_list args)
 	else
 		format->precision = -1;
 }
-
 void	parse_specifier(const char **str, t_format *format)
 {
 	if (**str == 'c' || **str == 's' || **str == 'p' || **str == 'd' || **str == '%'
@@ -102,18 +110,6 @@ void	parse_specifier(const char **str, t_format *format)
 		format->specifier = *((*str)++);
 }
 #pragma endregion
-
-int	ft_strlen(char *str)
-{
-	int	i;
-
-	i = 0;
-	if (!str)
-		return (-1);
-	while (str[i])
-		i++;
-	return (i);
-}
 
 #pragma region [FT_Length]
 int	ft_length_c(t_format *format, int c)
@@ -123,24 +119,6 @@ int	ft_length_c(t_format *format, int c)
 		return (format->width);
 	return (1);
 }
-
-int	ft_length_num_base(long nbr, char *base, int base_len)
-{
-	int	len;
-
-	len = 1;
-	if (nbr <= 0)
-		nbr *= -1;
-	else
-		len = 0;
-	while (nbr != 0)
-	{
-		nbr /= base_len;
-		len++;
-	}
-	return (len);
-}
-
 int	ft_length_s(t_format *format, char *str)
 {
 	int	len;
@@ -156,30 +134,133 @@ int	ft_length_s(t_format *format, char *str)
 		len = format->width;
 	return (len);
 }
-
-int	ft_length_n(t_format *format, long nbr, char *base, int base_len)
+int	ft_length_num_base(long nbr, int base_len)
 {
 	int	len;
 
-	len = ft_length_num_base(nbr, base, base_len);
+	len = 1;
+	if (nbr <= 0)
+		nbr *= -1;
+	else
+		len = 0;
+	while (nbr != 0)
+	{
+		nbr /= base_len;
+		len++;
+	}
+	return (len);
+}
+int	ft_length_n(t_format *format, long nbr, int base_len)
+{
+	int	len;
+
+	len = ft_length_num_base(nbr, base_len);
 	if (len < format->precision)
 		len = format->precision;
 	if (len < format->width)
 		len = format->width;
 	return (len);
 }
-
 int	ft_length_p(t_format *format, void *p)
 {
 	int	len;
 
-	len = ft_length_num_base((unsigned long)p, "123456789abcdef", 16);
+	len = ft_length_num_base((unsigned long)p, 16);
 	if (format->precision > len)
 		len = format->precision;
 	len += 2;
 	if (format->width > len)
 		len = format->width;
 	return (len);
+}
+#pragma endregion
+
+#pragma region [To_Buffer]
+void	ft_c_to_buffer(char **buffer, t_format *format, int c)
+{
+	if (format->left_align == -1)
+		while (format->width-- > 1)
+			*(*buffer)++ = ' ';
+	*(*buffer)++ = (char)c;
+	if (format->left_align == 1 && ++(format->width) > 1)
+		while (format->width-- > 1)
+			*(*buffer)++ = ' ';
+}
+void	ft_s_to_buffer(char **buffer, t_format *format, char *str)
+{
+	int	str_len;
+
+	if (!str && format->precision < 6 && format->precision != -1)
+		str = "";
+	else if (!str)
+		str = "(null)";
+	str_len = ft_strlen(str);
+	if (format->precision != -1 && format->precision < str_len)
+		str_len = format->precision;
+	if (format->left_align == -1 && format->width > str_len)
+		while (0 < ((format->width--) - str_len))
+			*(*buffer)++ = ' ';
+	else
+		format->width -= (str_len - 1);
+	while (str_len-- > 0)
+		*(*buffer)++ = *(str++);
+	if (format->left_align == 1 && format->width > 0)
+		while (1 < format->width--)
+			*(*buffer)++ = ' ';
+}
+void	ft_num_base_to_buffer(char **buffer, long nbr, char *base, int base_len)
+{
+	if (nbr < 0)
+	{
+		*(*buffer)++ = '-';
+		nbr = -nbr;
+	}
+	if (nbr >= base_len)
+		ft_num_base_to_buffer(buffer, nbr / base_len, base, base_len);
+	*(*buffer)++ = base[nbr % base_len];
+}
+void	ft_n_to_buffer(char **buffer, t_format *format, long nbr, char *base, int base_len)
+{
+	int len = 0;
+	int is_negative = (nbr < 0 && format->specifier == 'd');
+	if (is_negative)
+	{
+		nbr = -nbr;
+		len++;
+	}
+	len += ft_length_n(format, nbr, base_len);
+	if (format->left_align == -1)
+	{
+		while (format->width-- > len)
+			*(*buffer)++ = (format->zero_padding ? '0' : ' ');
+	}
+	if (is_negative)
+		*(*buffer)++ = '-';
+	ft_num_base_to_buffer(buffer, nbr, base, base_len);
+	if (format->left_align == 1)
+	{
+		while (format->width-- > len)
+			*(*buffer)++ = ' ';
+	}
+}
+void	ft_p_to_buffer(char **buffer, t_format *format, void *p)
+{
+	int len;
+
+	len = ft_length_p(format, p);
+	if (format->left_align == -1)
+	{
+		while (format->width-- > len)
+			*(*buffer)++ = ' ';
+	}
+	*(*buffer)++ = '0';
+	*(*buffer)++ = 'x';
+	ft_num_base_to_buffer(buffer, (unsigned long)p, "0123456789abcdef", 16);
+	if (format->left_align == 1)
+	{
+		while (format->width-- > len)
+			*(*buffer)++ = ' ';
+	}
 }
 #pragma endregion
 
@@ -192,19 +273,16 @@ int	ft_lenght_arg(t_format *format, va_list args)
 	else if (format->specifier == 'p')
 		return (ft_length_p(format, va_arg(args, void *)));
 	else if (format->specifier == 'd' || format->specifier == 'i')
-		return (ft_length_n(format, va_arg(args, int),
-				"0123456789", 10));
+		return (ft_length_n(format, va_arg(args, int), 10));
 	else if (format->specifier == 'u')
-		return (ft_length_n(format, va_arg(args, unsigned int),
-				"0123456789", 10));
+		return (ft_length_n(format, va_arg(args, unsigned int), 10));
 	else if (format->specifier == 'x')
-		return (ft_length_n(format, va_arg(args, unsigned int),
-				"0123456789abcdef", 16));
+		return (ft_length_n(format, va_arg(args, unsigned int), 16));
 	else if (format->specifier == 'X')
-		return (ft_length_n(format, va_arg(args, unsigned int),
-				"0123456789ABCDEF", 16));
+		return (ft_length_n(format, va_arg(args, unsigned int), 16));
 	else if (format->specifier == '%')
 		return (1);
+		
 	return (-1);
 }
 
@@ -235,102 +313,6 @@ int	get_format_len(const char *str, va_list args)
 	return (len);
 }
 
-#pragma region [To_Buffer]
-void	ft_c_to_buffer(char **buffer, t_format *format, int c)
-{
-	if (format->left_align == -1)
-		while (format->width-- > 1)
-			*(*buffer)++ = ' ';
-	*(*buffer)++ = (char)c;
-	if (format->left_align == 1 && ++(format->width) > 1)
-		while (format->width-- > 1)
-			*(*buffer)++ = ' ';
-}
-
-
-void	ft_s_to_buffer(char **buffer, t_format *format, char *str)
-{
-	int	str_len;
-
-	if (!str && format->precision < 6 && format->precision != -1)
-		str = "";
-	else if (!str)
-		str = "(null)";
-	str_len = ft_strlen(str);
-	if (format->precision != -1 && format->precision < str_len)
-		str_len = format->precision;
-	if (format->left_align == -1 && format->width > str_len)
-		while (0 < ((format->width--) - str_len))
-			*(*buffer)++ = ' ';
-	else
-		format->width -= (str_len - 1);
-	while (str_len-- > 0)
-		*(*buffer)++ = *(str++);
-	if (format->left_align == 1 && format->width > 0)
-		while (1 < format->width--)
-			*(*buffer)++ = ' ';
-}
-
-void	ft_num_base_to_buffer(char **buffer, long nbr, char *base, int base_len)
-{
-	if (nbr < 0)
-	{
-		*(*buffer)++ = '-';
-		nbr = -nbr;
-	}
-	if (nbr >= base_len)
-		ft_num_base_to_buffer(buffer, nbr / base_len, base, base_len);
-	*(*buffer)++ = base[nbr % base_len];
-}
-
-void	ft_n_to_buffer(char **buffer, t_format *format, long nbr, char *base, int base_len)
-{
-	int len = 0;
-	int is_negative = (nbr < 0 && format->specifier == 'd');
-	if (is_negative)
-	{
-		nbr = -nbr;
-		len++;
-	}
-	len += ft_length_n(format, nbr, base, base_len);
-	if (format->left_align == -1)
-	{
-		while (format->width-- > len)
-			*(*buffer)++ = (format->zero_padding ? '0' : ' ');
-	}
-	if (is_negative)
-		*(*buffer)++ = '-';
-	ft_num_base_to_buffer(buffer, nbr, base, base_len);
-	if (format->left_align == 1)
-	{
-		while (format->width-- > len)
-			*(*buffer)++ = ' ';
-	}
-}
-
-void	ft_p_to_buffer(char **buffer, t_format *format, void *p)
-{
-	unsigned long addr = (unsigned long)p;
-	int len = ft_length_p(format, p);
-
-	if (format->left_align == -1)
-	{
-		while (format->width-- > len)
-			*(*buffer)++ = ' ';
-	}
-	*(*buffer)++ = '0';
-	*(*buffer)++ = 'x';
-	ft_num_base_to_buffer(buffer, addr, "0123456789abcdef", 16);
-
-	if (format->left_align == 1)
-	{
-		while (format->width-- > len)
-			*(*buffer)++ = ' ';
-	}
-}
-
-#pragma endregion
-
 void	arg_to_buffer(char **buffer, t_format *format, va_list args)
 {
 	if (format->specifier == 'c')
@@ -341,17 +323,17 @@ void	arg_to_buffer(char **buffer, t_format *format, va_list args)
 		ft_p_to_buffer(buffer, format, va_arg(args, void *));
 	else if (format->specifier == 'd' || format->specifier == 'i')
 		ft_n_to_buffer(buffer, format, va_arg(args, int),
-				"0123456789", 10);
+			"0123456789", 10);
 	else if (format->specifier == 'u')
 		ft_n_to_buffer(buffer, format, va_arg(args, unsigned int),
-				"0123456789", 10);
+			"0123456789", 10);
 	else if (format->specifier == 'x')
 		ft_n_to_buffer(buffer, format, va_arg(args, unsigned int),
-				"0123456789abcdef", 16);
+			"0123456789abcdef", 16);
 	else if (format->specifier == 'X')
 		ft_n_to_buffer(buffer, format, va_arg(args, unsigned int),
-				"0123456789ABCDEF", 16);
-	else if(format->specifier == '%')
+			"0123456789ABCDEF", 16);
+	else if (format->specifier == '%')
 		*(*buffer)++ = '%';
 }
 
