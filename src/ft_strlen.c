@@ -1,18 +1,25 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_printf.h                                        :+:      :+:    :+:   */
+/*   ft_strlen.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: ivar <ivar@student.42.fr>                  +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/11/02 08:43:18 by ivar              #+#    #+#             */
-/*   Updated: 2024/11/02 08:43:19 by ivar             ###   ########.fr       */
+/*   Created: 2024/11/02 08:43:54 by ivar              #+#    #+#             */
+/*   Updated: 2025/01/19 11:59:51 by ivar             ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef FT_PRINTF_H
-# define FT_PRINTF_H
+#include "../include/ft_printf.h"
 
-int	ft_printf(const char *str, ...);
+int	ft_strlen(char *str)
+{
+	int	i;
 
-#endif
+	i = 0;
+	if (!str)
+		return (-1);
+	while (str[i])
+		i++;
+	return (i);
+}
